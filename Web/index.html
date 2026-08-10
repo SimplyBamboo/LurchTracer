@@ -1629,8 +1629,12 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
 
   function handleWheel(delta, inputTime = performance.now()) {
     const mapped = delta > 0 ? controls.scrollUp.value : controls.scrollDown.value;
-    if (mapped !== 'NONE')
-      commitInput(currentDirection(mapped), inputTime, true);
+    if (mapped === 'NONE') return;
+
+    const key = mapped.toLowerCase();
+    if (state.heldKeys.has(key)) return;
+
+    commitInput(currentDirection(key), inputTime, true);
   }
 
   function userIsEditing() {
