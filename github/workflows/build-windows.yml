@@ -1,0 +1,65 @@
+name: Build Windows
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore .\LurchTracer.csproj --runtime win-x64
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish .\LurchTracer.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --no-restore `
+            --output .\publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+          $exe = '.\publish\LurchTracer.exe'
+          if (-not (Test-Path $exe)) {
+            throw 'Publish finished without LurchTracer.exe.'
+          }
+
+          New-Item -ItemType Directory -Force -Path .\dist | Out-Null
+          Copy-Item $exe .\dist\LurchTracer.exe
+          Compress-Archive `
+            -Path .\dist\LurchTracer.exe `
+            -DestinationPath .\dist\LurchTracer-Windows-x64.zip `
+            -Force
+
+      - name: Upload build
+        uses: actions/upload-artifact@v7
+        with:
+          name: LurchTracer-Windows-x64
+          path: |
+            dist/LurchTracer.exe
+            dist/LurchTracer-Windows-x64.zip
+          if-no-files-found: error
