@@ -18,7 +18,10 @@ public sealed class MainWindow : Form
         MinimumSize = new Size(760, 620);
         BackColor = Color.FromArgb(1, 2, 3);
         TransparencyKey = BackColor;
+
         browser.DefaultBackgroundColor = Color.Transparent;
+        browser.ZoomFactor = 1.25;
+
         Controls.Add(browser);
         Shown += async (_, _) => await StartAppAsync();
     }
@@ -49,8 +52,6 @@ public sealed class MainWindow : Form
         webView.Settings.IsZoomControlEnabled = false;
         webView.Settings.AreBrowserAcceleratorKeysEnabled = false;
         webView.Settings.IsStatusBarEnabled = false;
-        webView.Controller.DefaultBackgroundColor = Color.Transparent;
-        webView.Controller.ZoomFactor = 1.25;
 
         string webFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
