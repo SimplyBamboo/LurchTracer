@@ -1,3 +1,5 @@
+UI IS rough because of ai polishment on it, I hate making ui but this works well.
+
 ![Lurch Tracer](assets/banner.png)
 
 
