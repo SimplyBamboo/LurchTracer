@@ -24,15 +24,12 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Restore
-        run: dotnet restore .\LurchTracer.csproj --runtime win-x64
+      - name: Publish single exe
+        run: dotnet publish .\LurchTracer.csproj --configuration Release --runtime win-x64 --self-contained true --output .\publish
 
-      - name: Build
-        run: dotnet build .\LurchTracer.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore
-
-      - name: Upload build
+      - name: Upload exe
         uses: actions/upload-artifact@v7
         with:
           name: LurchTracer-Windows-x64
-          path: bin/Release/net8.0-windows/win-x64/
+          path: publish/LurchTracer.exe
           if-no-files-found: error

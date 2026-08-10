@@ -1,10 +1,10 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 
 namespace LurchTracer;
 
-internal sealed class RawInputListener
+internal sealed class RawInputListener : IDisposable
 {
     private const int WmInput = 0x00FF;
     private const uint RidInput = 0x10000003;
@@ -17,6 +17,8 @@ internal sealed class RawInputListener
     private readonly HashSet<ushort> heldKeys = new();
     private readonly Action<string> sendJson;
     private readonly double millisecondsPerTick = 1000.0 / Stopwatch.Frequency;
+    private IntPtr inputBuffer;
+    private uint inputBufferSize;
 
     public RawInputListener(Action<string> sendJson)
     {
@@ -45,25 +47,30 @@ internal sealed class RawInputListener
         if (GetRawInputData(message.LParam, RidInput, IntPtr.Zero, ref size, headerSize) == uint.MaxValue || size == 0)
             return;
 
-        IntPtr buffer = Marshal.AllocHGlobal((int)size);
-        try
-        {
-            if (GetRawInputData(message.LParam, RidInput, buffer, ref size, headerSize) == uint.MaxValue)
-                return;
+        EnsureBuffer(size);
+        if (GetRawInputData(message.LParam, RidInput, inputBuffer, ref size, headerSize) == uint.MaxValue)
+            return;
 
-            RawInputHeader header = Marshal.PtrToStructure<RawInputHeader>(buffer);
-            IntPtr data = IntPtr.Add(buffer, Marshal.SizeOf<RawInputHeader>());
-            double time = Stopwatch.GetTimestamp() * millisecondsPerTick;
+        RawInputHeader header = Marshal.PtrToStructure<RawInputHeader>(inputBuffer);
+        IntPtr data = IntPtr.Add(inputBuffer, Marshal.SizeOf<RawInputHeader>());
+        double time = Stopwatch.GetTimestamp() * millisecondsPerTick;
 
-            if (header.Type == KeyboardType)
-                HandleKeyboard(Marshal.PtrToStructure<RawKeyboard>(data), time);
-            else if (header.Type == MouseType)
-                HandleMouse(Marshal.PtrToStructure<RawMouse>(data), time);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(buffer);
-        }
+        if (header.Type == KeyboardType)
+            HandleKeyboard(Marshal.PtrToStructure<RawKeyboard>(data), time);
+        else if (header.Type == MouseType)
+            HandleMouse(Marshal.PtrToStructure<RawMouse>(data), time);
+    }
+
+    private void EnsureBuffer(uint size)
+    {
+        if (inputBuffer != IntPtr.Zero && inputBufferSize >= size)
+            return;
+
+        if (inputBuffer != IntPtr.Zero)
+            Marshal.FreeHGlobal(inputBuffer);
+
+        inputBuffer = Marshal.AllocHGlobal((int)size);
+        inputBufferSize = size;
     }
 
     private void HandleKeyboard(RawKeyboard keyboard, double time)
@@ -82,15 +89,19 @@ internal sealed class RawInputListener
             return;
 
         bool released = (keyboard.Flags & KeyBreak) != 0;
-        if (released) {
+        if (released)
+        {
             if (!heldKeys.Remove(keyboard.VirtualKey))
                 return;
-        } else {
+        }
+        else
+        {
             if (!heldKeys.Add(keyboard.VirtualKey))
                 return;
         }
 
-        sendJson(JsonSerializer.Serialize(new { type = "key", key, down = !released, time }));
+        string down = released ? "false" : "true";
+        sendJson($"{{\"type\":\"key\",\"key\":\"{key}\",\"down\":{down},\"time\":{time.ToString("R", CultureInfo.InvariantCulture)}}}");
     }
 
     private void HandleMouse(RawMouse mouse, double time)
@@ -102,7 +113,17 @@ internal sealed class RawInputListener
         if (wheelDelta == 0)
             return;
 
-        sendJson(JsonSerializer.Serialize(new { type = "wheel", delta = wheelDelta, time }));
+        sendJson($"{{\"type\":\"wheel\",\"delta\":{wheelDelta},\"time\":{time.ToString("R", CultureInfo.InvariantCulture)}}}");
+    }
+
+    public void Dispose()
+    {
+        if (inputBuffer == IntPtr.Zero)
+            return;
+
+        Marshal.FreeHGlobal(inputBuffer);
+        inputBuffer = IntPtr.Zero;
+        inputBufferSize = 0;
     }
 
     [StructLayout(LayoutKind.Sequential)]

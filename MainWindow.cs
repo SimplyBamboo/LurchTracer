@@ -8,7 +8,18 @@ public sealed class MainWindow : Form
 {
     private readonly WebView2 browser = new() { Dock = DockStyle.Fill };
     private RawInputListener? inputListener;
+    private byte[]? pageBytes;
     private bool pageReady;
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            CreateParams parameters = base.CreateParams;
+            parameters.ClassName = "Chrome_LurchTracer_Window";
+            return parameters;
+        }
+    }
 
     public MainWindow()
     {
@@ -18,6 +29,7 @@ public sealed class MainWindow : Form
         MinimumSize = new Size(760, 620);
         BackColor = Color.FromArgb(1, 2, 3);
         TransparencyKey = BackColor;
+        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
 
         browser.DefaultBackgroundColor = Color.Transparent;
         browser.ZoomFactor = 1.25;
@@ -30,8 +42,11 @@ public sealed class MainWindow : Form
     {
         try
         {
-            var options = new CoreWebView2EnvironmentOptions("--disable-gpu");
-            var environment = await CoreWebView2Environment.CreateAsync(options: options);
+            string userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LurchTracer",
+                "WebView2");
+            var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
             await browser.EnsureCoreWebView2Async(environment);
         }
         catch (Exception error)
@@ -53,40 +68,65 @@ public sealed class MainWindow : Form
         webView.Settings.AreBrowserAcceleratorKeysEnabled = false;
         webView.Settings.IsStatusBarEnabled = false;
 
-        string webFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LurchTracer",
-            "Web");
-        Directory.CreateDirectory(webFolder);
-
-        string indexPath = Path.Combine(webFolder, "index.html");
         using Stream? source = Assembly.GetExecutingAssembly()
             .GetManifestResourceStream("LurchTracer.Web.index.html");
 
         if (source is null)
             throw new InvalidOperationException("Embedded UI is missing.");
 
-        await using (FileStream output = File.Create(indexPath))
-            await source.CopyToAsync(output);
+        using var copy = new MemoryStream();
+        await source.CopyToAsync(copy);
+        pageBytes = copy.ToArray();
 
-        webView.SetVirtualHostNameToFolderMapping(
-            "app.lurchtracer",
-            webFolder,
-            CoreWebView2HostResourceAccessKind.Allow);
-
+        webView.AddWebResourceRequestedFilter(
+            "https://app.lurchtracer/*",
+            CoreWebView2WebResourceContext.All);
+        webView.WebResourceRequested += ServeAppResource;
+        webView.NavigationCompleted += AppNavigationCompleted;
         webView.Navigate("https://app.lurchtracer/index.html");
-        pageReady = true;
+    }
 
+    private void ServeAppResource(object? sender, CoreWebView2WebResourceRequestedEventArgs eventArgs)
+    {
+        if (pageBytes is null || browser.CoreWebView2 is null)
+            return;
+
+        Uri requestUri = new(eventArgs.Request.Uri);
+        bool isPage = requestUri.AbsolutePath.Equals("/index.html", StringComparison.OrdinalIgnoreCase) ||
+            requestUri.AbsolutePath == "/";
+        Stream stream = isPage
+            ? new MemoryStream(pageBytes, false)
+            : new MemoryStream(Array.Empty<byte>(), false);
+        eventArgs.Response = browser.CoreWebView2.Environment.CreateWebResourceResponse(
+            stream,
+            isPage ? 200 : 404,
+            isPage ? "OK" : "Not Found",
+            isPage
+                ? "Content-Type: text/html; charset=utf-8\r\nCache-Control: no-store"
+                : "Cache-Control: no-store");
+    }
+
+    private void AppNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs eventArgs)
+    {
+        if (!eventArgs.IsSuccess || pageReady)
+            return;
+
+        pageReady = true;
         inputListener = new RawInputListener(PostInputMessage);
         inputListener.Register(Handle);
     }
 
     private void PostInputMessage(string json)
     {
-        if (!pageReady || browser.CoreWebView2 is null)
+        if (!pageReady || browser.CoreWebView2 is null || IsDisposed)
             return;
 
-        void Send() => browser.CoreWebView2.PostWebMessageAsJson(json);
+        void Send()
+        {
+            if (!IsDisposed && browser.CoreWebView2 is not null)
+                browser.CoreWebView2.PostWebMessageAsJson(json);
+        }
+
         if (InvokeRequired)
             BeginInvoke(Send);
         else
@@ -97,5 +137,16 @@ public sealed class MainWindow : Form
     {
         inputListener?.ProcessMessage(message);
         base.WndProc(ref message);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            inputListener?.Dispose();
+            browser.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }

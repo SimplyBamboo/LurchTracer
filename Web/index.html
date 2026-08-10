@@ -425,15 +425,24 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
   };
 
   let deviceScale = 1;
+  let cachedSettings = null;
+  let lastRenderedAt = 0;
+  let appearanceRevision = 0;
+  let ringRevision = '';
+  let glowRevision = '';
   const ringCanvas = document.createElement('canvas');
   const ringContext = ringCanvas.getContext('2d');
+  const glowCanvas = document.createElement('canvas');
+  const glowContext = glowCanvas.getContext('2d');
   const trailCanvas = document.createElement('canvas');
   const trailContext = trailCanvas.getContext('2d');
   const trailMaskCanvas = document.createElement('canvas');
   const trailMaskContext = trailMaskCanvas.getContext('2d');
 
   function settings() {
-    return {
+    if (cachedSettings) return cachedSettings;
+
+    cachedSettings = {
       speed: 500 + Number(controls.speed.value) * 22,
       thickness: 2 + 88 * Math.pow(Number(controls.thickness.value) / 100, 1.9701073789),
       trailTime: Number(controls.trailTime.value) * 1000,
@@ -451,6 +460,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
       gridSpeed: Number(controls.gridSpeed.value) / 100,
       glowSize: 4 + Number(controls.glowSize.value) * 0.34
     };
+    return cachedSettings;
   }
 
   function rgb(hex) {
@@ -1037,6 +1047,9 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
   }
 
   function drawRingLayer(geometry) {
+    const revision = `${appearanceRevision}:${canvas.width}:${canvas.height}:${geometry.centerX}:${geometry.centerY}:${geometry.radius}`;
+    if (ringRevision === revision) return;
+
     const config = settings();
     ringContext.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
     ringContext.save();
@@ -1057,51 +1070,61 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     ringContext.restore();
 
     drawTiledImage(ringContext, state.images.outline, geometry, 'outline');
+    ringRevision = revision;
+    glowRevision = '';
   }
 
   function drawGlow(geometry) {
     if (!controls.glowEnabled.checked) return;
-    const config = settings();
-    const outside = new Path2D();
-    outside.rect(0, 0, canvas.clientWidth, canvas.clientHeight);
-    outside.arc(
-      geometry.centerX,
-      geometry.centerY,
-      Math.max(0, geometry.radius - config.outlineThickness * 0.35),
-      0,
-      Math.PI * 2,
-      true
-    );
 
-    context.save();
-    context.clip(outside, 'evenodd');
+    const revision = `${ringRevision}:${appearanceRevision}`;
+    if (glowRevision !== revision) {
+      const config = settings();
+      const outside = new Path2D();
+      outside.rect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      outside.arc(
+        geometry.centerX,
+        geometry.centerY,
+        Math.max(0, geometry.radius - config.outlineThickness * 0.35),
+        0,
+        Math.PI * 2,
+        true
+      );
 
-    if (controls.glowMatchOutline.checked) {
-      const passes = [
-        { blur: config.glowSize * 1.65, alpha: 0.16 },
-        { blur: config.glowSize * 0.85, alpha: 0.23 },
-        { blur: config.glowSize * 0.38, alpha: 0.20 }
-      ];
-      for (const pass of passes) {
-        context.filter = `blur(${pass.blur}px)`;
-        context.globalAlpha = pass.alpha;
-        context.drawImage(ringCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
+      glowContext.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      glowContext.save();
+      glowContext.clip(outside, 'evenodd');
+
+      if (controls.glowMatchOutline.checked) {
+        const passes = [
+          { blur: config.glowSize * 1.65, alpha: 0.16 },
+          { blur: config.glowSize * 0.85, alpha: 0.23 },
+          { blur: config.glowSize * 0.38, alpha: 0.20 }
+        ];
+        for (const pass of passes) {
+          glowContext.filter = `blur(${pass.blur}px)`;
+          glowContext.globalAlpha = pass.alpha;
+          glowContext.drawImage(ringCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
+        }
+      } else {
+        const glow = colors.glow;
+        glowContext.filter = `blur(${config.glowSize}px)`;
+        glowContext.globalAlpha = glow.alpha * 0.55;
+        glowContext.strokeStyle = glow.hex;
+        glowContext.lineWidth = Math.max(2, config.outlineThickness * 0.7);
+        glowContext.beginPath();
+        glowContext.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
+        glowContext.stroke();
+        glowContext.filter = `blur(${config.glowSize * 0.45}px)`;
+        glowContext.globalAlpha = glow.alpha * 0.42;
+        glowContext.stroke();
       }
-    } else {
-      const glow = colors.glow;
-      context.filter = `blur(${config.glowSize}px)`;
-      context.globalAlpha = glow.alpha * 0.55;
-      context.strokeStyle = glow.hex;
-      context.lineWidth = Math.max(2, config.outlineThickness * 0.7);
-      context.beginPath();
-      context.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
-      context.stroke();
-      context.filter = `blur(${config.glowSize * 0.45}px)`;
-      context.globalAlpha = glow.alpha * 0.42;
-      context.stroke();
+
+      glowContext.restore();
+      glowRevision = revision;
     }
 
-    context.restore();
+    context.drawImage(glowCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
   }
 
   function drawTrail(now, geometry) {
@@ -1146,6 +1169,10 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
   }
 
   function drawFrame(now) {
+    requestAnimationFrame(drawFrame);
+    if (now - lastRenderedAt < 5.5) return;
+    lastRenderedAt = now;
+
     const config = settings();
     const deltaTime = Math.min(0.028, Math.max(0, (now - state.lastFrameAt) / 1000));
     state.lastFrameAt = now;
@@ -1159,7 +1186,10 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     advanceMovement(now);
 
     const oldPointTime = now - (config.trailTime + 120);
-    while (state.points.length && state.points[0].time < oldPointTime) state.points.shift();
+    let expiredPoints = 0;
+    while (expiredPoints < state.points.length && state.points[expiredPoints].time < oldPointTime)
+      expiredPoints++;
+    if (expiredPoints) state.points.splice(0, expiredPoints);
 
     context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
     const geometry = layout();
@@ -1178,10 +1208,11 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     context.arc(geometry.centerX, geometry.centerY, headSize / 2, 0, Math.PI * 2);
     context.fill();
 
-    requestAnimationFrame(drawFrame);
   }
 
   function updateLabels() {
+    cachedSettings = null;
+    appearanceRevision++;
     values.speed.textContent = controls.speed.value;
     values.thickness.textContent = controls.thickness.value;
     values.trailTime.textContent = Number(controls.trailTime.value).toFixed(1) + ' s';
@@ -1218,6 +1249,12 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     ringCanvas.width = canvas.width;
     ringCanvas.height = canvas.height;
     ringContext.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+
+    glowCanvas.width = canvas.width;
+    glowCanvas.height = canvas.height;
+    glowContext.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+    ringRevision = '';
+    glowRevision = '';
 
     trailCanvas.width = canvas.width;
     trailCanvas.height = canvas.height;
@@ -1614,6 +1651,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
   }
 
   function saveSettingsSoon() {
+    appearanceRevision++;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
@@ -1638,6 +1676,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     const image = new Image();
     image.onload = () => {
       state.images[kind] = { ...saved, image };
+      appearanceRevision++;
     };
     image.src = saved.dataUrl;
   }
