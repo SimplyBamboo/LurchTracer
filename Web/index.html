@@ -1,0 +1,1885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lurch Tracer</title>
+<style>
+:root{
+  --page:transparent;
+  --panel:#0d1218;
+  --panel2:#111820;
+  --panel3:#151e28;
+  --line:#24303c;
+  --line2:#1a232c;
+  --text:#e5edf5;
+  --muted:#8d9aa8;
+  --accent:#0a8dd8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}
+button{color:inherit}
+#app{position:relative;width:100%;height:100%;overflow:hidden;outline:none;user-select:none;background:transparent}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+#openButton{position:absolute;z-index:60;right:14px;top:6px;width:40px;height:40px;border:0;border-radius:50%;background:rgba(11,16,22,.92);color:#fff;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+#openButton:hover,#openButton.active{background:#16202a}
+#panel{position:absolute;z-index:50;right:14px;top:52px;bottom:14px;width:338px;display:none;background:rgba(13,18,24,.985);border:1px solid rgba(255,255,255,.055);box-shadow:0 18px 44px rgba(0,0,0,.34);overflow:hidden}
+#panel.open{display:flex;flex-direction:column}
+#tabs{height:42px;display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
+.tabButton{border:0;border-right:1px solid var(--line);background:#0d1218;color:#aab6c2;font-size:12px;font-weight:650;cursor:pointer}
+.tabButton:last-child{border-right:0}
+.tabButton.active{background:#151d26;color:#fff;box-shadow:inset 0 -2px 0 var(--accent)}
+#settingsView{min-height:0;display:flex;flex:1;flex-direction:column}
+#settingsScroll{min-height:0;flex:1;overflow-y:auto}
+#settingsScroll::-webkit-scrollbar{width:10px}
+#settingsScroll::-webkit-scrollbar-track{background:transparent}
+#settingsScroll::-webkit-scrollbar-thumb{border:3px solid transparent;border-radius:999px;background:#3b4753;background-clip:padding-box}
+.tabPage{display:none}
+.tabPage.active{display:block}
+.section{padding:10px 12px 11px;border-bottom:1px solid var(--line2)}
+.section h3{margin:0 0 9px;color:#f2f6fa;font-size:11px;font-weight:700;letter-spacing:.055em;text-transform:uppercase}
+.control{display:block;margin:0 0 9px}
+.control:last-child{margin-bottom:0}
+.controlLabel{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px;font-size:12px;color:#dfe7ef}
+.controlLabel b{font-size:11px;font-weight:650;font-variant-numeric:tabular-nums;color:#fff}
+.twoColumns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settingRow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:31px;margin-bottom:7px;font-size:12px;color:#e0e8f0}
+.settingRow:last-child{margin-bottom:0}
+.settingRow .actions{display:flex;gap:6px}
+input[type=range]{--fill:50%;appearance:none;width:100%;height:18px;margin:0;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:999px;background:linear-gradient(90deg,var(--accent) 0 var(--fill),#303b46 var(--fill) 100%)}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:15px;height:15px;margin-top:-5px;border:0;border-radius:50%;background:#f6fbff;box-shadow:0 0 0 2px rgba(0,0,0,.18)}
+input[type=checkbox]{appearance:none;width:34px;height:19px;margin:0;border:0;border-radius:999px;background:#1b2530;position:relative;cursor:pointer}
+input[type=checkbox]::after{content:"";position:absolute;left:3px;top:3px;width:13px;height:13px;border-radius:50%;background:#788694;transition:left .12s ease,background .12s ease}
+input[type=checkbox]:checked{background:rgba(0,141,216,.25)}
+input[type=checkbox]:checked::after{left:18px;background:#58c3ff}
+select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--panel2);color:#f0f5fa;padding:0 8px;outline:none}
+.smallButton{height:30px;padding:0 9px;border:1px solid var(--line);background:var(--panel2);color:#edf4fa;font-size:11px;font-weight:650;cursor:pointer}
+.smallButton:hover{background:var(--panel3)}
+.colorList{border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.colorButton{width:100%;height:38px;padding:0 8px;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:transparent;color:#e5edf5;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;font-size:12px}
+.colorButton:hover{background:#111922}
+.colorSwatch{width:25px;height:25px;border:1px solid rgba(255,255,255,.16);background-color:#fff}
+#panelFooter{height:45px;padding:7px 10px;border-top:1px solid var(--line);background:#0d1218}
+#resetButton{width:100%;height:31px;border:1px solid var(--line);background:#121a23;color:#eef4fa;font-size:11px;font-weight:700;cursor:pointer}
+#resetButton:hover{background:#18212b}
+.aboutText{padding:13px 12px;color:var(--muted);font-size:12px;line-height:1.65}
+.aboutText strong{color:#eef4fa;font-weight:650}
+#imageEditor{display:none;min-height:0;flex:1;flex-direction:column}
+#imageEditor.open{display:flex}
+#editorTitle{height:40px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700}
+#editorCanvasWrap{padding:10px;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#090d12}
+#editorCanvas{display:block;width:min(100%,310px);aspect-ratio:1/1;background:#080c10;cursor:move}
+#editorActions{height:48px;padding:8px 10px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#editorActions button{border:1px solid var(--line);background:var(--panel2);color:#eef4fa;font-size:11px;font-weight:700;cursor:pointer}
+#colorPicker{position:fixed;z-index:100;width:236px;display:none;background:#0d131a;border:1px solid #2a3743;box-shadow:0 16px 34px rgba(0,0,0,.4)}
+#colorPicker.open{display:block}
+#pickerHeader{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;border-bottom:1px solid #202a34;font-size:11px;font-weight:700}
+#pickerClose{width:28px;height:28px;border:0;background:transparent;color:#b2bdc7;font-size:18px;cursor:pointer}
+#pickerSquareWrap{position:relative;margin:9px;height:126px;border:1px solid #28343f}
+#pickerSquare{position:absolute;inset:0;background:#f00;cursor:crosshair}
+#pickerDot{position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000;transform:translate(-50%,-50%);pointer-events:none}
+.pickerLabel{height:18px;margin:0 9px 2px;display:flex;align-items:center;justify-content:space-between;color:#e4ebf2;font-size:10px;font-weight:650}
+.pickerRange{appearance:none!important;height:18px!important;margin:0 9px 7px!important;width:calc(100% - 18px)!important;background:transparent!important}
+.pickerRange::-webkit-slider-runnable-track{height:8px!important;border-radius:999px}
+.pickerRange::-webkit-slider-thumb{appearance:none!important;width:14px!important;height:14px!important;margin-top:-3px!important;border:2px solid #f7fbff!important;border-radius:50%!important;background:#111820!important;box-shadow:0 0 0 1px rgba(0,0,0,.75)!important}
+#pickerHue::-webkit-slider-runnable-track{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)!important}
+#pickerAlpha::-webkit-slider-runnable-track{background:linear-gradient(90deg,rgba(0,0,0,0),var(--alpha-color))!important}
+#pickerBottom{display:grid;grid-template-columns:34px 1fr;gap:7px;padding:3px 9px 9px}
+#pickerPreview{border:1px solid #2b3742;background:#fff}
+#pickerHex{height:30px;border:1px solid #2b3742;background:#111922;color:#eef4fa;padding:0 8px;font:11px ui-monospace,SFMono-Regular,Consolas,monospace;outline:none}
+.hidden{display:none!important}
+@media(max-width:680px){#panel{left:10px;right:10px;width:auto}.twoColumns{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app" tabindex="0">
+  <canvas id="view"></canvas>
+  <button id="openButton" type="button" aria-label="Open settings">O</button>
+
+  <aside id="panel">
+    <div id="settingsView">
+      <div id="tabs">
+        <button class="tabButton active" data-tab="movement" type="button">Movement</button>
+        <button class="tabButton" data-tab="appearance" type="button">Appearance</button>
+        <button class="tabButton" data-tab="about" type="button">About</button>
+      </div>
+
+      <div id="settingsScroll">
+        <div id="movement" class="tabPage active">
+          <section class="section">
+            <h3>Trail</h3>
+            <label class="control">
+              <span class="controlLabel"><span>Speed</span><b id="speedValue">76</b></span>
+              <input id="speed" type="range" min="1" max="100" value="76">
+            </label>
+            <label class="control">
+              <span class="controlLabel"><span>Thickness</span><b id="thicknessValue">55</b></span>
+              <input id="thickness" type="range" min="1" max="100" value="55">
+            </label>
+            <label class="control">
+              <span class="controlLabel"><span>Trail time</span><b id="trailTimeValue">0.2 s</b></span>
+              <input id="trailTime" type="range" min="0.1" max="2" step="0.1" value="0.2">
+            </label>
+            <label class="control">
+              <span class="controlLabel"><span>Smoothing</span><b id="smoothingValue">4%</b></span>
+              <input id="smoothing" type="range" min="0" max="50" value="4">
+            </label>
+            <div class="twoColumns">
+              <label class="control">
+                <span class="controlLabel"><span>Start size</span><b id="startSizeValue">100%</b></span>
+                <input id="startSize" type="range" min="20" max="100" value="100">
+              </label>
+              <label class="control">
+                <span class="controlLabel"><span>End size</span><b id="endSizeValue">20%</b></span>
+                <input id="endSize" type="range" min="5" max="100" value="20">
+              </label>
+            </div>
+            <label class="control">
+              <span class="controlLabel"><span>Center opacity</span><b id="dotOpacityValue">100%</b></span>
+              <input id="dotOpacity" type="range" min="0" max="100" value="100">
+            </label>
+          </section>
+
+          <section class="section">
+            <h3>Fail</h3>
+            <label class="control">
+              <span class="controlLabel"><span>Detection window</span><b id="failWindowValue">400 ms</b></span>
+              <input id="failWindow" type="range" min="20" max="400" step="5" value="400">
+            </label>
+            <div class="twoColumns">
+              <label class="control">
+                <span class="controlLabel"><span>Red time</span><b id="failHoldValue">25 ms</b></span>
+                <input id="failHold" type="range" min="5" max="100" step="5" value="25">
+              </label>
+              <label class="control">
+                <span class="controlLabel"><span>Fade to good</span><b id="failFadeValue">20 ms</b></span>
+                <input id="failFade" type="range" min="5" max="50" step="5" value="20">
+              </label>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3>Inputs</h3>
+            <div class="settingRow"><span>Scroll up</span><select id="scrollUp"><option value="NONE">None</option><option value="W" selected>W</option><option value="A">A</option><option value="S">S</option><option value="D">D</option></select></div>
+            <div class="settingRow"><span>Scroll down</span><select id="scrollDown"><option value="NONE">None</option><option value="W">W</option><option value="A">A</option><option value="S" selected>S</option><option value="D">D</option></select></div>
+            <label class="control">
+              <span class="controlLabel"><span>Held direction recovery</span><b id="heldRecoveryValue">250 ms</b></span>
+              <input id="heldRecovery" type="range" min="0" max="500" step="25" value="250">
+            </label>
+          </section>
+
+          <section class="section">
+            <h3>Trail colors</h3>
+            <div class="colorList">
+              <button class="colorButton" data-color="goodStart" type="button"><span>Good Start</span><i class="colorSwatch" data-swatch="goodStart"></i></button>
+              <button class="colorButton" data-color="goodEnd" type="button"><span>Good End</span><i class="colorSwatch" data-swatch="goodEnd"></i></button>
+              <button class="colorButton" data-color="failStart" type="button"><span>Fail Start</span><i class="colorSwatch" data-swatch="failStart"></i></button>
+              <button class="colorButton" data-color="failEnd" type="button"><span>Fail End</span><i class="colorSwatch" data-swatch="failEnd"></i></button>
+            </div>
+          </section>
+        </div>
+
+        <div id="appearance" class="tabPage">
+          <section class="section">
+            <h3>Circle</h3>
+            <label class="control">
+              <span class="controlLabel"><span>Circle size</span><b id="circleSizeValue">70%</b></span>
+              <input id="circleSize" type="range" min="40" max="100" value="70">
+            </label>
+            <label class="control">
+              <span class="controlLabel"><span>Outline thickness</span><b id="outlineThicknessValue">20</b></span>
+              <input id="outlineThickness" type="range" min="1" max="100" value="20">
+            </label>
+            <div class="colorList">
+              <button class="colorButton" data-color="background" type="button"><span>Background color</span><i class="colorSwatch" data-swatch="background"></i></button>
+              <button class="colorButton" data-color="outline" type="button"><span>Outline color</span><i class="colorSwatch" data-swatch="outline"></i></button>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3>Background</h3>
+            <div class="settingRow">
+              <span>Image</span>
+              <div class="actions">
+                <label class="smallButton" style="display:flex;align-items:center;cursor:pointer">Upload<input id="backgroundFile" type="file" accept="image/*" hidden></label>
+                <button id="backgroundEdit" class="smallButton" type="button">Edit</button>
+                <button id="backgroundRemove" class="smallButton" type="button">Remove</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3>Grid</h3>
+            <div class="settingRow"><span>Enabled</span><input id="gridEnabled" type="checkbox" checked></div>
+            <div class="settingRow"><span>Move grid</span><input id="gridMoving" type="checkbox"></div>
+            <div class="settingRow"><span>Invert movement</span><input id="gridInvert" type="checkbox"></div>
+            <label class="control">
+              <span class="controlLabel"><span>Grid size</span><b id="gridSizeValue">100</b></span>
+              <input id="gridSize" type="range" min="1" max="100" value="100">
+            </label>
+            <label class="control">
+              <span class="controlLabel"><span>Grid speed</span><b id="gridSpeedValue">33%</b></span>
+              <input id="gridSpeed" type="range" min="0" max="100" value="33">
+            </label>
+            <div class="colorList">
+              <button class="colorButton" data-color="grid" type="button"><span>Grid color</span><i class="colorSwatch" data-swatch="grid"></i></button>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3>Outline</h3>
+            <div class="settingRow">
+              <span>Image</span>
+              <div class="actions">
+                <label class="smallButton" style="display:flex;align-items:center;cursor:pointer">Upload<input id="outlineFile" type="file" accept="image/*" hidden></label>
+                <button id="outlineEdit" class="smallButton" type="button">Edit</button>
+                <button id="outlineRemove" class="smallButton" type="button">Remove</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3>Glow</h3>
+            <div class="settingRow"><span>Enabled</span><input id="glowEnabled" type="checkbox" checked></div>
+            <div class="settingRow"><span>Use outline colors</span><input id="glowMatchOutline" type="checkbox" checked></div>
+            <label class="control">
+              <span class="controlLabel"><span>Glow size</span><b id="glowSizeValue">34</b></span>
+              <input id="glowSize" type="range" min="1" max="100" value="34">
+            </label>
+            <div id="glowColorRow" class="colorList hidden">
+              <button class="colorButton" data-color="glow" type="button"><span>Glow color</span><i class="colorSwatch" data-swatch="glow"></i></button>
+            </div>
+          </section>
+        </div>
+
+        <div id="about" class="tabPage">
+          <div class="aboutText">
+            Created by <strong>@simply.bamboo</strong><br>
+            Idea from <strong>@ilydigital</strong>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelFooter"><button id="resetButton" type="button">Reset to defaults</button></div>
+    </div>
+
+    <div id="imageEditor">
+      <div id="editorTitle">Background Image</div>
+      <div id="editorCanvasWrap"><canvas id="editorCanvas" width="620" height="620"></canvas></div>
+      <div id="editorActions">
+        <button id="editorCancel" type="button">Cancel</button>
+        <button id="editorConfirm" type="button">Confirm</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="colorPicker">
+    <div id="pickerHeader"><span id="pickerTitle">Color</span><button id="pickerClose" type="button">×</button></div>
+    <div id="pickerSquareWrap"><div id="pickerSquare"></div><i id="pickerDot"></i></div>
+    <div class="pickerLabel"><span>Hue</span></div>
+    <input id="pickerHue" class="pickerRange" type="range" min="0" max="360" value="200">
+    <div class="pickerLabel"><span>Transparency</span><b id="pickerAlphaValue">100%</b></div>
+    <input id="pickerAlpha" class="pickerRange" type="range" min="0" max="100" value="100">
+    <div id="pickerBottom"><i id="pickerPreview"></i><input id="pickerHex" value="#0077C8"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const byId = id => document.getElementById(id);
+  const app = byId('app');
+  const canvas = byId('view');
+  const context = canvas.getContext('2d');
+  const panel = byId('panel');
+  const settingsView = byId('settingsView');
+  const settingsScroll = byId('settingsScroll');
+  const imageEditor = byId('imageEditor');
+  const nativeHosted = Boolean(window.chrome?.webview);
+
+  const defaultValues = {
+    speed: '76',
+    thickness: '55',
+    trailTime: '0.2',
+    smoothing: '4',
+    startSize: '100',
+    endSize: '20',
+    dotOpacity: '100',
+    failWindow: '400',
+    failHold: '25',
+    failFade: '20',
+    scrollUp: 'W',
+    scrollDown: 'S',
+    heldRecovery: '250',
+    circleSize: '70',
+    outlineThickness: '20',
+    gridEnabled: true,
+    gridMoving: false,
+    gridInvert: false,
+    gridSize: '100',
+    gridSpeed: '33',
+    glowEnabled: true,
+    glowMatchOutline: true,
+    glowSize: '34'
+  };
+
+  const defaultColors = {
+    goodStart: { hex: '#59BFFF', alpha: 1 },
+    goodEnd: { hex: '#2388DA', alpha: 1 },
+    failStart: { hex: '#FF2444', alpha: 1 },
+    failEnd: { hex: '#D5002E', alpha: 1 },
+    background: { hex: '#FFFFFF', alpha: 1 },
+    outline: { hex: '#0077C8', alpha: 1 },
+    grid: { hex: '#000000', alpha: 0.22 },
+    glow: { hex: '#008EE6', alpha: 0.62 }
+  };
+
+  const controls = {
+    speed: byId('speed'),
+    thickness: byId('thickness'),
+    trailTime: byId('trailTime'),
+    smoothing: byId('smoothing'),
+    startSize: byId('startSize'),
+    endSize: byId('endSize'),
+    dotOpacity: byId('dotOpacity'),
+    failWindow: byId('failWindow'),
+    failHold: byId('failHold'),
+    failFade: byId('failFade'),
+    scrollUp: byId('scrollUp'),
+    scrollDown: byId('scrollDown'),
+    heldRecovery: byId('heldRecovery'),
+    circleSize: byId('circleSize'),
+    outlineThickness: byId('outlineThickness'),
+    gridEnabled: byId('gridEnabled'),
+    gridMoving: byId('gridMoving'),
+    gridInvert: byId('gridInvert'),
+    gridSize: byId('gridSize'),
+    gridSpeed: byId('gridSpeed'),
+    glowEnabled: byId('glowEnabled'),
+    glowMatchOutline: byId('glowMatchOutline'),
+    glowSize: byId('glowSize')
+  };
+
+  const values = {
+    speed: byId('speedValue'),
+    thickness: byId('thicknessValue'),
+    trailTime: byId('trailTimeValue'),
+    smoothing: byId('smoothingValue'),
+    startSize: byId('startSizeValue'),
+    endSize: byId('endSizeValue'),
+    dotOpacity: byId('dotOpacityValue'),
+    failWindow: byId('failWindowValue'),
+    failHold: byId('failHoldValue'),
+    failFade: byId('failFadeValue'),
+    heldRecovery: byId('heldRecoveryValue'),
+    circleSize: byId('circleSizeValue'),
+    outlineThickness: byId('outlineThicknessValue'),
+    gridSize: byId('gridSizeValue'),
+    gridSpeed: byId('gridSpeedValue'),
+    glowSize: byId('glowSizeValue')
+  };
+
+  const directionVectors = {
+    w: [0, -1],
+    a: [-1, 0],
+    s: [0, 1],
+    d: [1, 0]
+  };
+
+  const directions = [
+    { x: 0, y: -1, index: 0 },
+    { x: 1, y: -1, index: 1 },
+    { x: 1, y: 0, index: 2 },
+    { x: 1, y: 1, index: 3 },
+    { x: 0, y: 1, index: 4 },
+    { x: -1, y: 1, index: 5 },
+    { x: -1, y: 0, index: 6 },
+    { x: -1, y: -1, index: 7 }
+  ];
+
+  const colors = structuredClone(defaultColors);
+  const state = {
+    heldKeys: new Set(),
+    direction: null,
+    wheelStopAt: 0,
+    worldPosition: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    points: [],
+    trainId: 0,
+    lastDirection: null,
+    lastInputAt: 0,
+    lastFailAt: -100000,
+    lastFrameAt: performance.now(),
+    lastSimulationAt: performance.now(),
+    lastPointAt: 0,
+    turnSmoothing: 1,
+    gridOffset: { x: 0, y: 0 },
+    lastWorldPosition: { x: 0, y: 0 },
+    failEndsAt: -100000,
+    recoveryAt: 0,
+    images: { background: null, outline: null },
+    editingImage: null,
+    pendingImage: null,
+    editorDrag: null
+  };
+
+  let deviceScale = 1;
+  const ringCanvas = document.createElement('canvas');
+  const ringContext = ringCanvas.getContext('2d');
+  const trailCanvas = document.createElement('canvas');
+  const trailContext = trailCanvas.getContext('2d');
+  const trailMaskCanvas = document.createElement('canvas');
+  const trailMaskContext = trailMaskCanvas.getContext('2d');
+
+  function settings() {
+    return {
+      speed: 500 + Number(controls.speed.value) * 22,
+      thickness: 2 + 88 * Math.pow(Number(controls.thickness.value) / 100, 1.9701073789),
+      trailTime: Number(controls.trailTime.value) * 1000,
+      smoothing: Number(controls.smoothing.value) / 100,
+      startSize: Number(controls.startSize.value) / 100,
+      endSize: Number(controls.endSize.value) / 100,
+      dotOpacity: Number(controls.dotOpacity.value) / 100,
+      failWindow: Number(controls.failWindow.value),
+      failHold: Number(controls.failHold.value),
+      failFade: Number(controls.failFade.value),
+      heldRecovery: Number(controls.heldRecovery.value),
+      circleSize: Number(controls.circleSize.value) / 100,
+      outlineThickness: 4 + Number(controls.outlineThickness.value) * 0.8,
+      gridSpacing: 26 + Number(controls.gridSize.value) * 1.05,
+      gridSpeed: Number(controls.gridSpeed.value) / 100,
+      glowSize: 4 + Number(controls.glowSize.value) * 0.34
+    };
+  }
+
+  function rgb(hex) {
+    const number = parseInt(hex.slice(1), 16);
+    return { r: number >> 16 & 255, g: number >> 8 & 255, b: number & 255 };
+  }
+
+  function rgba(color, alpha) {
+    const value = rgb(color.hex);
+    return `rgba(${value.r},${value.g},${value.b},${Math.max(0, Math.min(1, alpha * color.alpha))})`;
+  }
+
+  function mixRgb(start, end, amount) {
+    const a = rgb(start.hex);
+    const b = rgb(end.hex);
+    const t = Math.max(0, Math.min(1, amount));
+    return {
+      r: Math.round(a.r + (b.r - a.r) * t),
+      g: Math.round(a.g + (b.g - a.g) * t),
+      b: Math.round(a.b + (b.b - a.b) * t),
+      alpha: start.alpha + (end.alpha - start.alpha) * t
+    };
+  }
+
+  function rgbaMixed(color, alpha) {
+    return `rgba(${color.r},${color.g},${color.b},${Math.max(0, Math.min(1, color.alpha * alpha))})`;
+  }
+
+  function currentDirection(extraKey = null) {
+    let x = 0;
+    let y = 0;
+
+    for (const key of state.heldKeys) {
+      x += directionVectors[key][0];
+      y += directionVectors[key][1];
+    }
+
+    if (extraKey && directionVectors[extraKey.toLowerCase()]) {
+      x += directionVectors[extraKey.toLowerCase()][0];
+      y += directionVectors[extraKey.toLowerCase()][1];
+    }
+
+    x = Math.sign(x);
+    y = Math.sign(y);
+    if (!x && !y) return null;
+    return directions.find(direction => direction.x === x && direction.y === y) ?? null;
+  }
+
+  function directionSteps(from, to) {
+    const difference = Math.abs(from.index - to.index);
+    return Math.min(difference, 8 - difference);
+  }
+
+  function failStrengthAt(time) {
+    const config = settings();
+    const elapsed = time - state.lastFailAt;
+    if (elapsed < 0) return 0;
+    if (elapsed <= config.failHold) return 1;
+    if (elapsed <= config.failHold + config.failFade)
+      return 1 - (elapsed - config.failHold) / config.failFade;
+    return 0;
+  }
+
+  function recordPoint(time, force = false) {
+    const lastPoint = state.points[state.points.length - 1];
+    const config = settings();
+    const dx = lastPoint ? state.worldPosition.x - lastPoint.x : 999;
+    const dy = lastPoint ? state.worldPosition.y - lastPoint.y : 999;
+    const minimumDistance = Math.max(4, Math.min(10, config.thickness * 0.24));
+
+    if (!force && lastPoint && dx * dx + dy * dy < minimumDistance * minimumDistance && time - state.lastPointAt < 8)
+      return;
+
+    state.points.push({
+      x: state.worldPosition.x,
+      y: state.worldPosition.y,
+      time,
+      fail: failStrengthAt(time),
+      curve: state.turnSmoothing,
+      trainId: state.trainId
+    });
+
+    if (state.points.length > 640)
+      state.points.splice(0, state.points.length - 640);
+
+    state.lastPointAt = time;
+  }
+
+  function advanceMovement(time) {
+    if (!Number.isFinite(time)) return;
+
+    let remaining = Math.max(0, time - state.lastSimulationAt) / 1000;
+    if (remaining <= 0) return;
+
+    const config = settings();
+    let sampleTime = state.lastSimulationAt;
+
+    while (remaining > 0.00001) {
+      const deltaTime = Math.min(remaining, 0.004);
+      sampleTime += deltaTime * 1000;
+
+      if (state.direction) {
+        const length = Math.hypot(state.direction.x, state.direction.y) || 1;
+        const targetX = state.direction.x / length * config.speed;
+        const targetY = state.direction.y / length * config.speed;
+        const response = config.smoothing <= 0.001
+          ? 1
+          : 1 - Math.exp(-deltaTime / (0.001 + config.smoothing * 0.07));
+
+        state.velocity.x += (targetX - state.velocity.x) * response;
+        state.velocity.y += (targetY - state.velocity.y) * response;
+
+        const moveX = state.velocity.x * deltaTime;
+        const moveY = state.velocity.y * deltaTime;
+        state.worldPosition.x += moveX;
+        state.worldPosition.y += moveY;
+
+        if (controls.gridMoving.checked) {
+          state.gridOffset.x += moveX * config.gridSpeed;
+          state.gridOffset.y += moveY * config.gridSpeed;
+        }
+
+        recordPoint(sampleTime);
+      }
+
+      remaining -= deltaTime;
+    }
+
+    state.lastSimulationAt = time;
+  }
+
+  function stopMovement(time) {
+    advanceMovement(time);
+    state.direction = null;
+    state.wheelStopAt = 0;
+    state.velocity.x = 0;
+    state.velocity.y = 0;
+    recordPoint(time, true);
+  }
+
+  function scheduleHeldRecovery(time) {
+    const delay = settings().heldRecovery;
+    const direction = currentDirection();
+    state.recoveryAt = delay > 0 && direction ? time + delay : 0;
+  }
+
+  function recoverHeldDirection(time) {
+    const direction = currentDirection();
+    state.recoveryAt = 0;
+    if (!direction) return;
+
+    advanceMovement(time);
+    state.trainId += 1;
+    state.direction = direction;
+    state.lastDirection = direction;
+    state.lastInputAt = time;
+    state.turnSmoothing = 1;
+    state.velocity.x = 0;
+    state.velocity.y = 0;
+    recordPoint(time, true);
+  }
+
+  function commitInput(direction, time, wheelInput = false) {
+    state.recoveryAt = 0;
+    advanceMovement(time);
+    const config = settings();
+    if (!state.lastInputAt || time - state.lastInputAt > 520) {
+      state.trainId += 1;
+      state.lastDirection = null;
+    }
+
+    if (!direction) {
+      stopMovement(time);
+      return;
+    }
+
+    let turnSteps = 0;
+    if (state.lastDirection)
+      turnSteps = directionSteps(state.lastDirection, direction);
+
+    state.turnSmoothing = turnSteps > 1 ? 0.5 : 1;
+
+    const failed = state.lastDirection &&
+      time - state.lastInputAt <= config.failWindow &&
+      turnSteps > 1;
+
+    if (failed && time >= state.failEndsAt) {
+      state.lastFailAt = time;
+      state.failEndsAt = time + config.failHold + config.failFade;
+    }
+
+    state.direction = direction;
+    state.lastDirection = direction;
+    state.lastInputAt = time;
+    state.wheelStopAt = wheelInput ? time + 22 : 0;
+    recordPoint(time, true);
+  }
+
+  function layout() {
+    const reservedTop = 66;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const usableHeight = Math.max(100, height - reservedTop);
+    const maximumDiameter = Math.min(width, usableHeight);
+    const radius = maximumDiameter * 0.5 * settings().circleSize;
+    return {
+      centerX: width / 2,
+      centerY: reservedTop + usableHeight / 2,
+      radius,
+      reservedTop
+    };
+  }
+
+  function screenPoint(point, geometry) {
+    return {
+      x: geometry.centerX + point.x - state.worldPosition.x,
+      y: geometry.centerY + point.y - state.worldPosition.y,
+      time: point.time,
+      fail: point.fail,
+      curve: point.curve ?? 1,
+      trainId: point.trainId
+    };
+  }
+
+  function interpolatePoint(start, end, amount) {
+    return {
+      x: start.x + (end.x - start.x) * amount,
+      y: start.y + (end.y - start.y) * amount,
+      time: start.time + (end.time - start.time) * amount,
+      fail: start.fail + (end.fail - start.fail) * amount,
+      curve: start.curve + (end.curve - start.curve) * amount,
+      trainId: end.trainId
+    };
+  }
+
+  function pointDistance(a, b) {
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  }
+
+  function buildSmoothCenterline(points) {
+    if (points.length < 2) return points;
+
+    const clean = [points[0]];
+    for (let index = 1; index < points.length; index++) {
+      const point = points[index];
+      const last = clean[clean.length - 1];
+      if (pointDistance(last, point) >= 0.55)
+        clean.push(point);
+    }
+    if (clean.length < 2) return clean;
+
+    const result = [clean[0]];
+
+    for (let index = 0; index < clean.length - 1; index++) {
+      const previous = clean[Math.max(0, index - 1)];
+      const start = clean[index];
+      const end = clean[index + 1];
+      const next = clean[Math.min(clean.length - 1, index + 2)];
+      const segmentLength = pointDistance(start, end);
+      if (segmentLength < 0.001) continue;
+
+      const startCurve = start.curve ?? 1;
+      const endCurve = end.curve ?? 1;
+      const startLimit = Math.min(pointDistance(previous, start), segmentLength) * 0.48;
+      const endLimit = Math.min(segmentLength, pointDistance(end, next)) * 0.48;
+
+      let tangentStartX = (end.x - previous.x) * 0.5 * startCurve;
+      let tangentStartY = (end.y - previous.y) * 0.5 * startCurve;
+      let tangentEndX = (next.x - start.x) * 0.5 * endCurve;
+      let tangentEndY = (next.y - start.y) * 0.5 * endCurve;
+
+      const startTangentLength = Math.hypot(tangentStartX, tangentStartY);
+      const endTangentLength = Math.hypot(tangentEndX, tangentEndY);
+      if (startTangentLength > startLimit && startTangentLength > 0) {
+        const scale = startLimit / startTangentLength;
+        tangentStartX *= scale;
+        tangentStartY *= scale;
+      }
+      if (endTangentLength > endLimit && endTangentLength > 0) {
+        const scale = endLimit / endTangentLength;
+        tangentEndX *= scale;
+        tangentEndY *= scale;
+      }
+
+      const sampleCount = Math.max(2, Math.min(7, Math.ceil(segmentLength / 2.1)));
+      for (let sample = 1; sample <= sampleCount; sample++) {
+        const amount = sample / sampleCount;
+        const t2 = amount * amount;
+        const t3 = t2 * amount;
+        const h00 = 2 * t3 - 3 * t2 + 1;
+        const h10 = t3 - 2 * t2 + amount;
+        const h01 = -2 * t3 + 3 * t2;
+        const h11 = t3 - t2;
+        const values = interpolatePoint(start, end, amount);
+
+        result.push({
+          x: h00 * start.x + h10 * tangentStartX + h01 * end.x + h11 * tangentEndX,
+          y: h00 * start.y + h10 * tangentStartY + h01 * end.y + h11 * tangentEndY,
+          time: values.time,
+          fail: values.fail,
+          curve: values.curve,
+          trainId: end.trainId
+        });
+      }
+    }
+
+    return result;
+  }
+
+  function addTrailProgress(points) {
+    if (!points.length) return points;
+
+    let totalLength = 0;
+    points[0].distance = 0;
+    for (let index = 1; index < points.length; index++) {
+      totalLength += pointDistance(points[index - 1], points[index]);
+      points[index].distance = totalLength;
+    }
+
+    const divisor = Math.max(totalLength, 0.001);
+    let smoothFail = points[0].fail;
+    for (let index = 0; index < points.length; index++) {
+      smoothFail += (points[index].fail - smoothFail) * 0.34;
+      points[index].fail = smoothFail;
+      points[index].progress = points[index].distance / divisor;
+    }
+
+    smoothFail = points[points.length - 1].fail;
+    for (let index = points.length - 1; index >= 0; index--) {
+      smoothFail += (points[index].fail - smoothFail) * 0.22;
+      points[index].fail = (points[index].fail + smoothFail) * 0.5;
+    }
+
+    return points;
+  }
+
+  function trailStyle(point, now) {
+    const config = settings();
+    const progress = Math.max(0, Math.min(1, point.progress ?? 1));
+    const timeLife = Math.max(0, Math.min(1, 1 - (now - point.time) / config.trailTime));
+    const colorProgress = Math.pow(progress, 0.72);
+    const widthProgress = Math.pow(progress, 0.82);
+    const good = mixRgb(colors.goodEnd, colors.goodStart, colorProgress);
+    const fail = mixRgb(colors.failEnd, colors.failStart, colorProgress);
+    const tailFade = Math.min(1, progress / 0.08);
+
+    return {
+      color: {
+        r: Math.round(good.r + (fail.r - good.r) * point.fail),
+        g: Math.round(good.g + (fail.g - good.g) * point.fail),
+        b: Math.round(good.b + (fail.b - good.b) * point.fail),
+        alpha: good.alpha + (fail.alpha - good.alpha) * point.fail
+      },
+      alpha: Math.pow(timeLife, 0.58) * (0.08 + 0.92 * (tailFade * tailFade * (3 - 2 * tailFade))),
+      width: config.thickness *
+        (config.endSize + (config.startSize - config.endSize) * widthProgress)
+    };
+  }
+
+  function buildTrailMesh(points, now) {
+    if (points.length < 2) return [];
+
+    const mesh = [];
+    for (let index = 0; index < points.length; index++) {
+      const previous = points[Math.max(0, index - 1)];
+      const next = points[Math.min(points.length - 1, index + 1)];
+      const dx = next.x - previous.x;
+      const dy = next.y - previous.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const style = trailStyle(points[index], now);
+      let halfWidth = Math.max(0.25, style.width * 0.5);
+
+      if (index === 0)
+        halfWidth *= 0.08;
+      else if (index === 1)
+        halfWidth *= 0.55;
+
+      mesh.push({
+        x: points[index].x,
+        y: points[index].y,
+        tangentX: dx / length,
+        tangentY: dy / length,
+        normalX: -dy / length,
+        normalY: dx / length,
+        halfWidth,
+        style
+      });
+    }
+
+    return mesh;
+  }
+
+  function makeTrailSegmentPath(start, end) {
+    const overlap = 1.15;
+    const startX = start.x - start.tangentX * overlap;
+    const startY = start.y - start.tangentY * overlap;
+    const endX = end.x + end.tangentX * overlap;
+    const endY = end.y + end.tangentY * overlap;
+
+    const path = new Path2D();
+    path.moveTo(startX + start.normalX * start.halfWidth, startY + start.normalY * start.halfWidth);
+    path.lineTo(endX + end.normalX * end.halfWidth, endY + end.normalY * end.halfWidth);
+    path.lineTo(endX - end.normalX * end.halfWidth, endY - end.normalY * end.halfWidth);
+    path.lineTo(startX - start.normalX * start.halfWidth, startY - start.normalY * start.halfWidth);
+    path.closePath();
+    return path;
+  }
+
+  function drawTrailSegment(start, end) {
+    const path = makeTrailSegmentPath(start, end);
+    const colorGradient = trailContext.createLinearGradient(start.x, start.y, end.x, end.y);
+    colorGradient.addColorStop(0, `rgb(${start.style.color.r},${start.style.color.g},${start.style.color.b})`);
+    colorGradient.addColorStop(1, `rgb(${end.style.color.r},${end.style.color.g},${end.style.color.b})`);
+    trailContext.fillStyle = colorGradient;
+    trailContext.fill(path);
+  }
+
+  function buildTrailMask(mesh) {
+    if (mesh.length < 2) return null;
+
+    const left = mesh.map(point => ({
+      x: point.x + point.normalX * point.halfWidth,
+      y: point.y + point.normalY * point.halfWidth
+    }));
+    const right = mesh.map(point => ({
+      x: point.x - point.normalX * point.halfWidth,
+      y: point.y - point.normalY * point.halfWidth
+    })).reverse();
+
+    const path = new Path2D();
+    path.moveTo(left[0].x, left[0].y);
+
+    for (let index = 1; index < left.length; index++) {
+      const previous = left[index - 1];
+      const point = left[index];
+      path.quadraticCurveTo(
+        previous.x,
+        previous.y,
+        (previous.x + point.x) * 0.5,
+        (previous.y + point.y) * 0.5
+      );
+    }
+
+    path.lineTo(left[left.length - 1].x, left[left.length - 1].y);
+    path.lineTo(right[0].x, right[0].y);
+
+    for (let index = 1; index < right.length; index++) {
+      const previous = right[index - 1];
+      const point = right[index];
+      path.quadraticCurveTo(
+        previous.x,
+        previous.y,
+        (previous.x + point.x) * 0.5,
+        (previous.y + point.y) * 0.5
+      );
+    }
+
+    path.lineTo(right[right.length - 1].x, right[right.length - 1].y);
+    path.closePath();
+    return path;
+  }
+
+  function drawTrailMask(mesh) {
+    const path = buildTrailMask(mesh);
+    if (!path) return;
+
+    const first = mesh[0];
+    const last = mesh[mesh.length - 1];
+    const firstAlpha = Math.max(0, Math.min(1, first.style.alpha * first.style.color.alpha));
+    const lastAlpha = Math.max(0, Math.min(1, last.style.alpha * last.style.color.alpha));
+    const gradient = trailMaskContext.createLinearGradient(first.x, first.y, last.x, last.y);
+    gradient.addColorStop(0, `rgba(255,255,255,${firstAlpha})`);
+    gradient.addColorStop(0.12, `rgba(255,255,255,${Math.max(firstAlpha, lastAlpha * 0.7)})`);
+    gradient.addColorStop(1, `rgba(255,255,255,${lastAlpha})`);
+    trailMaskContext.fillStyle = gradient;
+    trailMaskContext.fill(path);
+  }
+
+  function drawCenteredGrid(geometry) {
+    if (!controls.gridEnabled.checked) return;
+    const config = settings();
+    const spacing = config.gridSpacing;
+    const radius = Math.max(0, geometry.radius - config.outlineThickness);
+    const direction = controls.gridInvert.checked ? 1 : -1;
+    const offsetX = controls.gridMoving.checked ? state.gridOffset.x * direction : 0;
+    const offsetY = controls.gridMoving.checked ? state.gridOffset.y * direction : 0;
+
+    context.save();
+    context.beginPath();
+    context.arc(geometry.centerX, geometry.centerY, radius, 0, Math.PI * 2);
+    context.clip();
+    context.strokeStyle = rgba(colors.grid, 1);
+    context.lineWidth = 1;
+    context.beginPath();
+
+    const startX = geometry.centerX + ((offsetX % spacing) + spacing) % spacing;
+    const startY = geometry.centerY + ((offsetY % spacing) + spacing) % spacing;
+    const count = Math.ceil(radius / spacing) + 2;
+
+    for (let index = -count; index <= count; index++) {
+      const x = startX + index * spacing;
+      const y = startY + index * spacing;
+      context.moveTo(x, geometry.centerY - radius);
+      context.lineTo(x, geometry.centerY + radius);
+      context.moveTo(geometry.centerX - radius, y);
+      context.lineTo(geometry.centerX + radius, y);
+    }
+
+    context.stroke();
+    context.restore();
+  }
+
+  function drawTiledImage(target, imageData, geometry, targetKind) {
+    if (!imageData?.image) return;
+
+    const tileWidth = Math.max(8, geometry.radius * 2 * imageData.width);
+    const tileHeight = Math.max(8, geometry.radius * 2 * imageData.height);
+    const centerX = geometry.centerX + imageData.x * geometry.radius;
+    const centerY = geometry.centerY + imageData.y * geometry.radius;
+    const left = geometry.centerX - geometry.radius;
+    const top = geometry.centerY - geometry.radius;
+    const right = geometry.centerX + geometry.radius;
+    const bottom = geometry.centerY + geometry.radius;
+
+    let startX = centerX - tileWidth / 2;
+    let startY = centerY - tileHeight / 2;
+    while (startX > left) startX -= tileWidth;
+    while (startY > top) startY -= tileHeight;
+    while (startX + tileWidth < left) startX += tileWidth;
+    while (startY + tileHeight < top) startY += tileHeight;
+
+    target.save();
+    if (targetKind === 'background') {
+      target.beginPath();
+      target.arc(
+        geometry.centerX,
+        geometry.centerY,
+        Math.max(0, geometry.radius - settings().outlineThickness),
+        0,
+        Math.PI * 2
+      );
+      target.clip();
+    } else {
+      const ring = new Path2D();
+      ring.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
+      ring.arc(
+        geometry.centerX,
+        geometry.centerY,
+        Math.max(0, geometry.radius - settings().outlineThickness),
+        0,
+        Math.PI * 2,
+        true
+      );
+      target.clip(ring, 'evenodd');
+    }
+
+    for (let y = startY; y < bottom; y += tileHeight) {
+      for (let x = startX; x < right; x += tileWidth) {
+        target.drawImage(imageData.image, x, y, tileWidth, tileHeight);
+      }
+    }
+    target.restore();
+  }
+
+  function drawBackground(geometry) {
+    const config = settings();
+    const radius = Math.max(0, geometry.radius - config.outlineThickness);
+
+    context.save();
+    context.beginPath();
+    context.arc(geometry.centerX, geometry.centerY, radius, 0, Math.PI * 2);
+    context.clip();
+    context.fillStyle = rgba(colors.background, 1);
+    context.fillRect(
+      geometry.centerX - geometry.radius,
+      geometry.centerY - geometry.radius,
+      geometry.radius * 2,
+      geometry.radius * 2
+    );
+    context.restore();
+
+    drawTiledImage(context, state.images.background, geometry, 'background');
+    drawCenteredGrid(geometry);
+  }
+
+  function drawRingLayer(geometry) {
+    const config = settings();
+    ringContext.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    ringContext.save();
+
+    const ring = new Path2D();
+    ring.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
+    ring.arc(
+      geometry.centerX,
+      geometry.centerY,
+      Math.max(0, geometry.radius - config.outlineThickness),
+      0,
+      Math.PI * 2,
+      true
+    );
+    ringContext.clip(ring, 'evenodd');
+    ringContext.fillStyle = rgba(colors.outline, 1);
+    ringContext.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    ringContext.restore();
+
+    drawTiledImage(ringContext, state.images.outline, geometry, 'outline');
+  }
+
+  function drawGlow(geometry) {
+    if (!controls.glowEnabled.checked) return;
+    const config = settings();
+    const outside = new Path2D();
+    outside.rect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    outside.arc(
+      geometry.centerX,
+      geometry.centerY,
+      Math.max(0, geometry.radius - config.outlineThickness * 0.35),
+      0,
+      Math.PI * 2,
+      true
+    );
+
+    context.save();
+    context.clip(outside, 'evenodd');
+
+    if (controls.glowMatchOutline.checked) {
+      const passes = [
+        { blur: config.glowSize * 1.65, alpha: 0.16 },
+        { blur: config.glowSize * 0.85, alpha: 0.23 },
+        { blur: config.glowSize * 0.38, alpha: 0.20 }
+      ];
+      for (const pass of passes) {
+        context.filter = `blur(${pass.blur}px)`;
+        context.globalAlpha = pass.alpha;
+        context.drawImage(ringCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
+      }
+    } else {
+      const glow = colors.glow;
+      context.filter = `blur(${config.glowSize}px)`;
+      context.globalAlpha = glow.alpha * 0.55;
+      context.strokeStyle = glow.hex;
+      context.lineWidth = Math.max(2, config.outlineThickness * 0.7);
+      context.beginPath();
+      context.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
+      context.stroke();
+      context.filter = `blur(${config.glowSize * 0.45}px)`;
+      context.globalAlpha = glow.alpha * 0.42;
+      context.stroke();
+    }
+
+    context.restore();
+  }
+
+  function drawTrail(now, geometry) {
+    const config = settings();
+    const visibleRadius = Math.max(0, geometry.radius - config.outlineThickness);
+    const groups = [];
+
+    for (const point of state.points) {
+      if (now - point.time >= config.trailTime + 40) continue;
+      const screen = screenPoint(point, geometry);
+      const distanceFromCenter = Math.hypot(screen.x - geometry.centerX, screen.y - geometry.centerY);
+      if (distanceFromCenter > visibleRadius + config.thickness * 2.5) continue;
+
+      const group = groups[groups.length - 1];
+      if (!group || group[0].trainId !== screen.trainId) groups.push([screen]);
+      else group.push(screen);
+    }
+
+    trailContext.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    trailMaskContext.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    for (const group of groups) {
+      if (group.length < 2) continue;
+      const centerline = addTrailProgress(buildSmoothCenterline(group));
+      const mesh = buildTrailMesh(centerline, now);
+      for (let index = 1; index < mesh.length; index++)
+        drawTrailSegment(mesh[index - 1], mesh[index]);
+      drawTrailMask(mesh);
+    }
+
+    trailContext.save();
+    trailContext.globalCompositeOperation = 'destination-in';
+    trailContext.drawImage(trailMaskCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
+    trailContext.restore();
+
+    context.save();
+    context.beginPath();
+    context.arc(geometry.centerX, geometry.centerY, visibleRadius, 0, Math.PI * 2);
+    context.clip();
+    context.drawImage(trailCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
+    context.restore();
+  }
+
+  function drawFrame(now) {
+    const config = settings();
+    const deltaTime = Math.min(0.028, Math.max(0, (now - state.lastFrameAt) / 1000));
+    state.lastFrameAt = now;
+
+    if (state.wheelStopAt && now >= state.wheelStopAt)
+      stopMovement(state.wheelStopAt);
+
+    if (state.recoveryAt && now >= state.recoveryAt)
+      recoverHeldDirection(state.recoveryAt);
+
+    advanceMovement(now);
+
+    const oldPointTime = now - (config.trailTime + 120);
+    while (state.points.length && state.points[0].time < oldPointTime) state.points.shift();
+
+    context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    const geometry = layout();
+
+    drawBackground(geometry);
+    drawTrail(now, geometry);
+    drawRingLayer(geometry);
+    drawGlow(geometry);
+    context.drawImage(ringCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    const failMix = failStrengthAt(now);
+    const headColor = mixRgb(colors.goodStart, colors.failStart, failMix);
+    const headSize = config.thickness * config.startSize * 1.62;
+    context.fillStyle = rgbaMixed(headColor, config.dotOpacity);
+    context.beginPath();
+    context.arc(geometry.centerX, geometry.centerY, headSize / 2, 0, Math.PI * 2);
+    context.fill();
+
+    requestAnimationFrame(drawFrame);
+  }
+
+  function updateLabels() {
+    values.speed.textContent = controls.speed.value;
+    values.thickness.textContent = controls.thickness.value;
+    values.trailTime.textContent = Number(controls.trailTime.value).toFixed(1) + ' s';
+    values.smoothing.textContent = controls.smoothing.value + '%';
+    values.startSize.textContent = controls.startSize.value + '%';
+    values.endSize.textContent = controls.endSize.value + '%';
+    values.dotOpacity.textContent = controls.dotOpacity.value + '%';
+    values.failWindow.textContent = controls.failWindow.value + ' ms';
+    values.failHold.textContent = controls.failHold.value + ' ms';
+    values.failFade.textContent = controls.failFade.value + ' ms';
+    values.heldRecovery.textContent = Number(controls.heldRecovery.value) === 0 ? 'Off' : controls.heldRecovery.value + ' ms';
+    values.circleSize.textContent = controls.circleSize.value + '%';
+    values.outlineThickness.textContent = controls.outlineThickness.value;
+    values.gridSize.textContent = controls.gridSize.value;
+    values.gridSpeed.textContent = controls.gridSpeed.value + '%';
+    values.glowSize.textContent = controls.glowSize.value;
+
+    document.querySelectorAll('input[type=range]').forEach(slider => {
+      const fill = (Number(slider.value) - Number(slider.min)) /
+        (Number(slider.max) - Number(slider.min)) * 100;
+      slider.style.setProperty('--fill', fill + '%');
+    });
+
+    byId('glowColorRow').classList.toggle('hidden', controls.glowMatchOutline.checked);
+  }
+
+  function resizeCanvas() {
+    deviceScale = Math.min(window.devicePixelRatio || 1, 2);
+    const bounds = canvas.getBoundingClientRect();
+    canvas.width = Math.round(bounds.width * deviceScale);
+    canvas.height = Math.round(bounds.height * deviceScale);
+    context.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+
+    ringCanvas.width = canvas.width;
+    ringCanvas.height = canvas.height;
+    ringContext.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+
+    trailCanvas.width = canvas.width;
+    trailCanvas.height = canvas.height;
+    trailContext.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+
+    trailMaskCanvas.width = canvas.width;
+    trailMaskCanvas.height = canvas.height;
+    trailMaskContext.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+  }
+
+  function resetTrail() {
+    state.heldKeys.clear();
+    state.direction = null;
+    state.wheelStopAt = 0;
+    state.worldPosition = { x: 0, y: 0 };
+    state.velocity = { x: 0, y: 0 };
+    state.points = [];
+    state.trainId = 0;
+    state.lastDirection = null;
+    state.lastInputAt = 0;
+    state.lastFailAt = -100000;
+    state.failEndsAt = -100000;
+    state.recoveryAt = 0;
+    state.lastSimulationAt = performance.now();
+    state.turnSmoothing = 1;
+    state.gridOffset = { x: 0, y: 0 };
+    state.lastWorldPosition = { x: 0, y: 0 };
+    app.focus();
+  }
+
+  function applyDefaults() {
+    for (const [name, defaultValue] of Object.entries(defaultValues)) {
+      const control = controls[name];
+      if (!control) continue;
+      if (control.type === 'checkbox') control.checked = Boolean(defaultValue);
+      else control.value = String(defaultValue);
+    }
+
+    for (const key of Object.keys(defaultColors))
+      colors[key] = structuredClone(defaultColors[key]);
+
+    state.images.background = null;
+    state.images.outline = null;
+    localStorage.removeItem('lurch.tracer.v18');
+    updateColorSwatches();
+    updateLabels();
+    resetTrail();
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tabButton').forEach(button =>
+      button.classList.toggle('active', button.dataset.tab === name));
+    document.querySelectorAll('.tabPage').forEach(page =>
+      page.classList.toggle('active', page.id === name));
+    closeColorPicker();
+    settingsScroll.scrollTop = 0;
+  }
+
+  const picker = byId('colorPicker');
+  const pickerSquare = byId('pickerSquare');
+  const pickerDot = byId('pickerDot');
+  const pickerHue = byId('pickerHue');
+  const pickerAlpha = byId('pickerAlpha');
+  const pickerHex = byId('pickerHex');
+  const pickerPreview = byId('pickerPreview');
+  const pickerAlphaValue = byId('pickerAlphaValue');
+  let pickerTarget = null;
+  let pickerAnchor = null;
+  let hue = 200;
+  let saturation = 0.8;
+  let value = 1;
+  let alpha = 1;
+  let draggingPicker = false;
+
+  function hsvFromHex(hex) {
+    const color = rgb(hex);
+    const r = color.r / 255;
+    const g = color.g / 255;
+    const b = color.b / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const difference = max - min;
+    let resultHue = 0;
+
+    if (difference) {
+      if (max === r) resultHue = 60 * (((g - b) / difference) % 6);
+      else if (max === g) resultHue = 60 * ((b - r) / difference + 2);
+      else resultHue = 60 * ((r - g) / difference + 4);
+    }
+
+    if (resultHue < 0) resultHue += 360;
+    return { h: resultHue, s: max ? difference / max : 0, v: max };
+  }
+
+  function hexFromHsv(h, s, v) {
+    const chroma = v * s;
+    const second = chroma * (1 - Math.abs((h / 60) % 2 - 1));
+    const match = v - chroma;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+
+    if (h < 60) { r = chroma; g = second; }
+    else if (h < 120) { r = second; g = chroma; }
+    else if (h < 180) { g = chroma; b = second; }
+    else if (h < 240) { g = second; b = chroma; }
+    else if (h < 300) { r = second; b = chroma; }
+    else { r = chroma; b = second; }
+
+    return '#' + [r, g, b]
+      .map(channel => Math.round((channel + match) * 255).toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+  }
+
+  function updateColorSwatches() {
+    for (const key of Object.keys(colors)) {
+      document.querySelectorAll(`[data-swatch="${key}"]`).forEach(swatch => {
+        swatch.style.backgroundImage = 'none';
+        swatch.style.backgroundColor = rgba(colors[key], 1);
+      });
+    }
+  }
+
+  function positionColorPicker() {
+    if (!pickerTarget || !pickerAnchor || !picker.classList.contains('open')) return;
+    const anchorBounds = pickerAnchor.getBoundingClientRect();
+    const width = picker.offsetWidth || 236;
+    const height = picker.offsetHeight || 244;
+    const gap = 6;
+    let left = anchorBounds.right - width;
+    let top = anchorBounds.bottom + gap;
+
+    if (left < 8) left = 8;
+    if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
+    if (top + height > window.innerHeight - 8) top = anchorBounds.top - height - gap;
+    if (top < 8) top = 8;
+
+    picker.style.left = Math.round(left) + 'px';
+    picker.style.top = Math.round(top) + 'px';
+  }
+
+  function drawColorPicker() {
+    const hex = hexFromHsv(hue, saturation, value);
+    pickerSquare.style.background =
+      `linear-gradient(to top,#000,transparent),` +
+      `linear-gradient(to right,#fff,rgba(255,255,255,0)),` +
+      `hsl(${hue} 100% 50%)`;
+
+    pickerDot.style.left = saturation * 100 + '%';
+    pickerDot.style.top = (1 - value) * 100 + '%';
+    pickerHex.value = hex;
+    pickerHue.value = Math.round(hue);
+    pickerAlpha.value = Math.round(alpha * 100);
+    pickerAlphaValue.textContent = Math.round(alpha * 100) + '%';
+    pickerPreview.style.background = `rgba(${rgb(hex).r},${rgb(hex).g},${rgb(hex).b},${alpha})`;
+    pickerAlpha.style.setProperty('--alpha-color', hex);
+
+    if (pickerTarget) {
+      colors[pickerTarget] = { hex, alpha };
+      updateColorSwatches();
+      saveSettingsSoon();
+    }
+  }
+
+  function closeColorPicker() {
+    picker.classList.remove('open');
+    pickerTarget = null;
+    pickerAnchor = null;
+  }
+
+  function openColorPicker(key, anchor) {
+    if (picker.classList.contains('open') && pickerTarget === key) {
+      closeColorPicker();
+      return;
+    }
+
+    pickerTarget = key;
+    pickerAnchor = anchor;
+    const current = colors[key];
+    const hsv = hsvFromHex(current.hex);
+    hue = hsv.h;
+    saturation = hsv.s;
+    value = hsv.v;
+    alpha = current.alpha;
+    byId('pickerTitle').textContent = anchor.querySelector('span')?.textContent || 'Color';
+    picker.classList.add('open');
+    drawColorPicker();
+    positionColorPicker();
+  }
+
+  function setPickerSquare(event) {
+    const bounds = byId('pickerSquareWrap').getBoundingClientRect();
+    saturation = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+    value = 1 - Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+    drawColorPicker();
+  }
+
+  const editorCanvas = byId('editorCanvas');
+  const editorContext = editorCanvas.getContext('2d');
+  const editorHandles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+  function editorGeometry() {
+    const size = editorCanvas.width;
+    return { centerX: size / 2, centerY: size / 2, radius: size * 0.43 };
+  }
+
+  function tileRectangle(geometry, imageData) {
+    const width = geometry.radius * 2 * imageData.width;
+    const height = geometry.radius * 2 * imageData.height;
+    return {
+      x: geometry.centerX + imageData.x * geometry.radius - width / 2,
+      y: geometry.centerY + imageData.y * geometry.radius - height / 2,
+      width,
+      height
+    };
+  }
+
+  function handlePositions(rectangle) {
+    return {
+      nw: [rectangle.x, rectangle.y],
+      n: [rectangle.x + rectangle.width / 2, rectangle.y],
+      ne: [rectangle.x + rectangle.width, rectangle.y],
+      e: [rectangle.x + rectangle.width, rectangle.y + rectangle.height / 2],
+      se: [rectangle.x + rectangle.width, rectangle.y + rectangle.height],
+      s: [rectangle.x + rectangle.width / 2, rectangle.y + rectangle.height],
+      sw: [rectangle.x, rectangle.y + rectangle.height],
+      w: [rectangle.x, rectangle.y + rectangle.height / 2]
+    };
+  }
+
+  function drawEditorTilePattern(geometry) {
+    const imageData = state.pendingImage;
+    if (!imageData?.image) return;
+
+    const tileWidth = geometry.radius * 2 * imageData.width;
+    const tileHeight = geometry.radius * 2 * imageData.height;
+    const centerX = geometry.centerX + imageData.x * geometry.radius;
+    const centerY = geometry.centerY + imageData.y * geometry.radius;
+    const left = geometry.centerX - geometry.radius;
+    const top = geometry.centerY - geometry.radius;
+    const right = geometry.centerX + geometry.radius;
+    const bottom = geometry.centerY + geometry.radius;
+    let startX = centerX - tileWidth / 2;
+    let startY = centerY - tileHeight / 2;
+
+    while (startX > left) startX -= tileWidth;
+    while (startY > top) startY -= tileHeight;
+    while (startX + tileWidth < left) startX += tileWidth;
+    while (startY + tileHeight < top) startY += tileHeight;
+
+    editorContext.save();
+    if (state.editingImage === 'background') {
+      editorContext.beginPath();
+      editorContext.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
+      editorContext.clip();
+      editorContext.fillStyle = rgba(colors.background, 1);
+      editorContext.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
+    } else {
+      const ring = new Path2D();
+      ring.arc(geometry.centerX, geometry.centerY, geometry.radius, 0, Math.PI * 2);
+      ring.arc(geometry.centerX, geometry.centerY, geometry.radius - 42, 0, Math.PI * 2, true);
+      editorContext.clip(ring, 'evenodd');
+      editorContext.fillStyle = rgba(colors.outline, 1);
+      editorContext.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
+    }
+
+    for (let y = startY; y < bottom; y += tileHeight) {
+      for (let x = startX; x < right; x += tileWidth)
+        editorContext.drawImage(imageData.image, x, y, tileWidth, tileHeight);
+    }
+    editorContext.restore();
+  }
+
+  function drawImageEditor() {
+    if (!state.pendingImage) return;
+    const geometry = editorGeometry();
+    const rectangle = tileRectangle(geometry, state.pendingImage);
+
+    editorContext.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
+    editorContext.fillStyle = '#080c11';
+    editorContext.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
+    drawEditorTilePattern(geometry);
+
+    editorContext.strokeStyle = 'rgba(255,255,255,.88)';
+    editorContext.lineWidth = 2;
+    editorContext.setLineDash([8, 6]);
+    editorContext.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+    editorContext.setLineDash([]);
+
+    for (const point of Object.values(handlePositions(rectangle))) {
+      editorContext.fillStyle = '#f8fbff';
+      editorContext.strokeStyle = '#0a1016';
+      editorContext.lineWidth = 3;
+      editorContext.beginPath();
+      editorContext.arc(point[0], point[1], 8, 0, Math.PI * 2);
+      editorContext.fill();
+      editorContext.stroke();
+    }
+  }
+
+  function openImageEditor(kind, image, dataUrl, fresh) {
+    const existing = state.images[kind];
+    state.editingImage = kind;
+    state.pendingImage = fresh || !existing
+      ? { image, dataUrl, x: 0, y: 0, width: 0.78, height: 0.78 }
+      : { ...existing, image: existing.image };
+
+    byId('editorTitle').textContent = kind === 'background' ? 'Background Image' : 'Outline Image';
+    settingsView.classList.add('hidden');
+    imageEditor.classList.add('open');
+    closeColorPicker();
+    drawImageEditor();
+  }
+
+  function closeImageEditor() {
+    imageEditor.classList.remove('open');
+    settingsView.classList.remove('hidden');
+    state.editingImage = null;
+    state.pendingImage = null;
+    state.editorDrag = null;
+  }
+
+  function editorPointer(event) {
+    const bounds = editorCanvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) * editorCanvas.width / bounds.width,
+      y: (event.clientY - bounds.top) * editorCanvas.height / bounds.height
+    };
+  }
+
+  function hitEditorHandle(point, rectangle) {
+    const positions = handlePositions(rectangle);
+    let best = null;
+    let bestDistance = 18;
+
+    for (const handle of editorHandles) {
+      const position = positions[handle];
+      const distance = Math.hypot(point.x - position[0], point.y - position[1]);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = handle;
+      }
+    }
+    return best;
+  }
+
+  function handleKey(key, down, inputTime = performance.now()) {
+    key = key.toLowerCase();
+    if (directionVectors[key]) {
+      if (down) {
+        if (state.heldKeys.has(key)) return;
+        state.heldKeys.add(key);
+        commitInput(currentDirection(), inputTime, false);
+      } else {
+        if (!state.heldKeys.has(key)) return;
+        state.heldKeys.delete(key);
+        stopMovement(inputTime);
+        scheduleHeldRecovery(inputTime);
+      }
+      return;
+    }
+
+    if (key === ' ' && down) {
+      state.recoveryAt = 0;
+      state.trainId += 1;
+      state.lastDirection = null;
+      const direction = currentDirection();
+      if (direction) commitInput(direction, inputTime, false);
+    }
+  }
+
+  function handleWheel(delta, inputTime = performance.now()) {
+    const mapped = delta > 0 ? controls.scrollUp.value : controls.scrollDown.value;
+    if (mapped !== 'NONE')
+      commitInput(currentDirection(mapped), inputTime, true);
+  }
+
+  function userIsEditing() {
+    return document.hasFocus() && (panel.classList.contains('open') || imageEditor.classList.contains('open'));
+  }
+
+  let saveTimer = null;
+
+  function serialImage(imageData) {
+    if (!imageData) return null;
+    return {
+      dataUrl: imageData.dataUrl,
+      x: imageData.x,
+      y: imageData.y,
+      width: imageData.width,
+      height: imageData.height
+    };
+  }
+
+  function saveSettingsSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        const savedValues = {};
+        for (const [name, control] of Object.entries(controls))
+          savedValues[name] = control.type === 'checkbox' ? control.checked : control.value;
+
+        localStorage.setItem('lurch.tracer.v18', JSON.stringify({
+          values: savedValues,
+          colors,
+          images: {
+            background: serialImage(state.images.background),
+            outline: serialImage(state.images.outline)
+          }
+        }));
+      } catch {}
+    }, 150);
+  }
+
+  function restoreImage(saved, kind) {
+    if (!saved?.dataUrl) return;
+    const image = new Image();
+    image.onload = () => {
+      state.images[kind] = { ...saved, image };
+    };
+    image.src = saved.dataUrl;
+  }
+
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem('lurch.tracer.v18');
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+
+      if (saved.values) {
+        for (const [name, value] of Object.entries(saved.values)) {
+          const control = controls[name];
+          if (!control) continue;
+          if (control.type === 'checkbox') control.checked = Boolean(value);
+          else control.value = String(value);
+        }
+      }
+
+      if (saved.colors) {
+        for (const [name, color] of Object.entries(saved.colors)) {
+          if (colors[name]) colors[name] = color;
+        }
+      }
+
+      restoreImage(saved.images?.background, 'background');
+      restoreImage(saved.images?.outline, 'outline');
+    } catch {}
+  }
+
+  document.querySelectorAll('.tabButton').forEach(button =>
+    button.addEventListener('click', () => switchTab(button.dataset.tab)));
+
+  document.querySelectorAll('[data-color]').forEach(button =>
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      openColorPicker(button.dataset.color, button);
+    }));
+
+  byId('pickerClose').addEventListener('click', closeColorPicker);
+  pickerHue.addEventListener('input', () => {
+    hue = Number(pickerHue.value);
+    drawColorPicker();
+  });
+  pickerAlpha.addEventListener('input', () => {
+    alpha = Number(pickerAlpha.value) / 100;
+    drawColorPicker();
+  });
+  pickerHex.addEventListener('change', () => {
+    if (!/^#[0-9a-f]{6}$/i.test(pickerHex.value)) return;
+    const hsv = hsvFromHex(pickerHex.value);
+    hue = hsv.h;
+    saturation = hsv.s;
+    value = hsv.v;
+    drawColorPicker();
+  });
+
+  pickerSquare.addEventListener('pointerdown', event => {
+    draggingPicker = true;
+    setPickerSquare(event);
+  });
+  window.addEventListener('pointermove', event => {
+    if (draggingPicker) setPickerSquare(event);
+  });
+  window.addEventListener('pointerup', () => {
+    draggingPicker = false;
+  });
+
+  document.addEventListener('pointerdown', event => {
+    if (!picker.classList.contains('open')) return;
+    if (picker.contains(event.target)) return;
+    if (event.target.closest?.('[data-color]')) return;
+    closeColorPicker();
+  });
+
+  settingsScroll.addEventListener('scroll', () => requestAnimationFrame(positionColorPicker));
+  window.addEventListener('resize', positionColorPicker);
+
+  byId('openButton').addEventListener('click', event => {
+    event.stopPropagation();
+    if (imageEditor.classList.contains('open')) closeImageEditor();
+    const open = !panel.classList.contains('open');
+    panel.classList.toggle('open', open);
+    byId('openButton').classList.toggle('active', open);
+    if (!open) closeColorPicker();
+    app.focus();
+  });
+
+  byId('resetButton').addEventListener('click', applyDefaults);
+
+  function loadImageFile(file, kind) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => openImageEditor(kind, image, reader.result, true);
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  byId('backgroundFile').addEventListener('change', event => {
+    loadImageFile(event.target.files[0], 'background');
+    event.target.value = '';
+  });
+  byId('outlineFile').addEventListener('change', event => {
+    loadImageFile(event.target.files[0], 'outline');
+    event.target.value = '';
+  });
+  byId('backgroundEdit').addEventListener('click', () => {
+    const image = state.images.background;
+    if (image) openImageEditor('background', image.image, image.dataUrl, false);
+  });
+  byId('outlineEdit').addEventListener('click', () => {
+    const image = state.images.outline;
+    if (image) openImageEditor('outline', image.image, image.dataUrl, false);
+  });
+  byId('backgroundRemove').addEventListener('click', () => {
+    state.images.background = null;
+    saveSettingsSoon();
+  });
+  byId('outlineRemove').addEventListener('click', () => {
+    state.images.outline = null;
+    saveSettingsSoon();
+  });
+
+  editorCanvas.addEventListener('pointerdown', event => {
+    if (!state.pendingImage) return;
+    const point = editorPointer(event);
+    const geometry = editorGeometry();
+    const rectangle = tileRectangle(geometry, state.pendingImage);
+    const handle = hitEditorHandle(point, rectangle);
+    const inside = point.x >= rectangle.x && point.x <= rectangle.x + rectangle.width &&
+      point.y >= rectangle.y && point.y <= rectangle.y + rectangle.height;
+
+    if (!handle && !inside) return;
+    state.editorDrag = {
+      mode: handle || 'move',
+      start: point,
+      original: { ...state.pendingImage },
+      geometry
+    };
+    editorCanvas.setPointerCapture(event.pointerId);
+  });
+
+  editorCanvas.addEventListener('pointermove', event => {
+    if (!state.editorDrag || !state.pendingImage) return;
+    const point = editorPointer(event);
+    const drag = state.editorDrag;
+    const dx = (point.x - drag.start.x) / drag.geometry.radius;
+    const dy = (point.y - drag.start.y) / drag.geometry.radius;
+    const original = drag.original;
+    const image = state.pendingImage;
+    const minimum = 0.10;
+
+    if (drag.mode === 'move') {
+      image.x = original.x + dx;
+      image.y = original.y + dy;
+    } else {
+      let left = original.x - original.width;
+      let right = original.x + original.width;
+      let top = original.y - original.height;
+      let bottom = original.y + original.height;
+
+      if (drag.mode.includes('e')) right = original.x + original.width + dx;
+      if (drag.mode.includes('w')) left = original.x - original.width + dx;
+      if (drag.mode.includes('s')) bottom = original.y + original.height + dy;
+      if (drag.mode.includes('n')) top = original.y - original.height + dy;
+
+      image.width = Math.max(minimum, Math.min(3, (right - left) / 2));
+      image.height = Math.max(minimum, Math.min(3, (bottom - top) / 2));
+      image.x = (left + right) / 2;
+      image.y = (top + bottom) / 2;
+    }
+
+    drawImageEditor();
+  });
+
+  editorCanvas.addEventListener('pointerup', event => {
+    state.editorDrag = null;
+    try { editorCanvas.releasePointerCapture(event.pointerId); } catch {}
+  });
+
+  byId('editorCancel').addEventListener('click', closeImageEditor);
+  byId('editorConfirm').addEventListener('click', () => {
+    if (state.pendingImage && state.editingImage) {
+      state.images[state.editingImage] = { ...state.pendingImage };
+      saveSettingsSoon();
+    }
+    closeImageEditor();
+  });
+
+  for (const control of Object.values(controls)) {
+    control.addEventListener('input', updateLabels);
+    control.addEventListener('change', saveSettingsSoon);
+  }
+
+  if (nativeHosted) {
+    let nativeClockOffset = null;
+    window.chrome.webview.addEventListener('message', event => {
+      if (userIsEditing()) return;
+      const message = event.data;
+      if (!message?.type) return;
+      const nativeTime = Number(message.time);
+      if (Number.isFinite(nativeTime) && nativeClockOffset === null)
+        nativeClockOffset = performance.now() - nativeTime;
+      const inputTime = Number.isFinite(nativeTime) && nativeClockOffset !== null
+        ? nativeTime + nativeClockOffset
+        : performance.now();
+      if (message.type === 'key') handleKey(message.key, Boolean(message.down), inputTime);
+      else if (message.type === 'wheel') handleWheel(message.delta, inputTime);
+    });
+  } else {
+    window.addEventListener('keydown', event => {
+      if (directionVectors[event.key.toLowerCase()] || event.key === ' ') {
+        event.preventDefault();
+        if (!event.repeat) handleKey(event.key, true, performance.now());
+      }
+    });
+    window.addEventListener('keyup', event => {
+      if (directionVectors[event.key.toLowerCase()]) {
+        event.preventDefault();
+        handleKey(event.key, false, performance.now());
+      }
+    });
+    window.addEventListener('wheel', event => {
+      if (panel.contains(event.target)) return;
+      event.preventDefault();
+      handleWheel(-event.deltaY, performance.now());
+    }, { passive: false });
+  }
+
+  app.addEventListener('pointerdown', () => app.focus());
+  new ResizeObserver(resizeCanvas).observe(app);
+
+  loadSettings();
+  updateColorSwatches();
+  updateLabels();
+  resizeCanvas();
+  resetTrail();
+  requestAnimationFrame(drawFrame);
+})();
+</script>
+</body>
+</html>
