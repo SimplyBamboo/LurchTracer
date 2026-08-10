@@ -403,6 +403,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     heldKeys: new Set(),
     direction: null,
     wheelStopAt: 0,
+    wheelKey: null,
     worldPosition: { x: 0, y: 0 },
     velocity: { x: 0, y: 0 },
     points: [],
@@ -489,7 +490,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     return `rgba(${color.r},${color.g},${color.b},${Math.max(0, Math.min(1, color.alpha * alpha))})`;
   }
 
-  function currentDirection(extraKey = null) {
+  function currentDirection() {
     let x = 0;
     let y = 0;
 
@@ -498,9 +499,9 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
       y += directionVectors[key][1];
     }
 
-    if (extraKey && directionVectors[extraKey.toLowerCase()]) {
-      x += directionVectors[extraKey.toLowerCase()][0];
-      y += directionVectors[extraKey.toLowerCase()][1];
+    if (state.wheelKey && !state.heldKeys.has(state.wheelKey)) {
+      x += directionVectors[state.wheelKey][0];
+      y += directionVectors[state.wheelKey][1];
     }
 
     x = Math.sign(x);
@@ -595,16 +596,25 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
   function stopMovement(time) {
     advanceMovement(time);
     state.direction = null;
-    state.wheelStopAt = 0;
     state.velocity.x = 0;
     state.velocity.y = 0;
     recordPoint(time, true);
   }
 
   function scheduleHeldRecovery(time) {
-    const delay = settings().heldRecovery;
     const direction = currentDirection();
-    state.recoveryAt = delay > 0 && direction ? time + delay : 0;
+    if (!direction) {
+      state.recoveryAt = 0;
+      return;
+    }
+
+    const delay = settings().heldRecovery;
+    if (delay <= 0) {
+      recoverHeldDirection(time);
+      return;
+    }
+
+    state.recoveryAt = time + delay;
   }
 
   function recoverHeldDirection(time) {
@@ -617,11 +627,10 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     state.lastDirection = direction;
     state.lastInputAt = time;
     state.turnSmoothing = 1;
-    state.wheelStopAt = 0;
     recordPoint(time, true);
   }
 
-  function commitInput(direction, time, wheelInput = false) {
+  function commitInput(direction, time) {
     state.recoveryAt = 0;
     advanceMovement(time);
     const config = settings();
@@ -653,8 +662,18 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     state.direction = direction;
     state.lastDirection = direction;
     state.lastInputAt = time;
-    state.wheelStopAt = wheelInput ? time + 22 : 0;
     recordPoint(time, true);
+  }
+
+  function finishWheelInput(time) {
+    state.wheelKey = null;
+    state.wheelStopAt = 0;
+    const direction = currentDirection();
+    if (direction) scheduleHeldRecovery(time);
+    else {
+      state.recoveryAt = 0;
+      stopMovement(time);
+    }
   }
 
   function layout() {
@@ -1176,7 +1195,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     state.lastFrameAt = now;
 
     if (state.wheelStopAt && now >= state.wheelStopAt)
-      stopMovement(state.wheelStopAt);
+      finishWheelInput(state.wheelStopAt);
 
     if (state.recoveryAt && now >= state.recoveryAt)
       recoverHeldDirection(state.recoveryAt);
@@ -1267,6 +1286,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     state.heldKeys.clear();
     state.direction = null;
     state.wheelStopAt = 0;
+    state.wheelKey = null;
     state.worldPosition = { x: 0, y: 0 };
     state.velocity = { x: 0, y: 0 };
     state.points = [];
@@ -1606,13 +1626,15 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
       if (down) {
         if (state.heldKeys.has(key)) return;
         state.heldKeys.add(key);
-        commitInput(currentDirection(), inputTime, false);
+        commitInput(currentDirection(), inputTime);
       } else {
         if (!state.heldKeys.has(key)) return;
         state.heldKeys.delete(key);
-        if (currentDirection()) {
-          state.wheelStopAt = 0;
+        const direction = currentDirection();
+        if (state.heldKeys.size > 0 && direction) {
           scheduleHeldRecovery(inputTime);
+        } else if (state.wheelKey && direction) {
+          commitInput(direction, inputTime);
         } else {
           state.recoveryAt = 0;
           stopMovement(inputTime);
@@ -1626,7 +1648,7 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
       state.trainId += 1;
       state.lastDirection = null;
       const direction = currentDirection();
-      if (direction) commitInput(direction, inputTime, false);
+      if (direction) commitInput(direction, inputTime);
     }
   }
 
@@ -1637,7 +1659,9 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     const key = mapped.toLowerCase();
     if (state.heldKeys.has(key)) return;
 
-    commitInput(currentDirection(key), inputTime, true);
+    state.wheelKey = key;
+    commitInput(currentDirection(), inputTime);
+    state.wheelStopAt = inputTime + 22;
   }
 
   function userIsEditing() {
