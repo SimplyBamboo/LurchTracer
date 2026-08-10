@@ -613,13 +613,11 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
     if (!direction) return;
 
     advanceMovement(time);
-    state.trainId += 1;
     state.direction = direction;
     state.lastDirection = direction;
     state.lastInputAt = time;
     state.turnSmoothing = 1;
-    state.velocity.x = 0;
-    state.velocity.y = 0;
+    state.wheelStopAt = 0;
     recordPoint(time, true);
   }
 
@@ -1612,8 +1610,13 @@ select{height:31px;min-width:82px;border:1px solid var(--line);background:var(--
       } else {
         if (!state.heldKeys.has(key)) return;
         state.heldKeys.delete(key);
-        stopMovement(inputTime);
-        scheduleHeldRecovery(inputTime);
+        if (currentDirection()) {
+          state.wheelStopAt = 0;
+          scheduleHeldRecovery(inputTime);
+        } else {
+          state.recoveryAt = 0;
+          stopMovement(inputTime);
+        }
       }
       return;
     }

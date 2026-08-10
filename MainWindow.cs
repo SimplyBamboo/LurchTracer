@@ -12,16 +12,6 @@ public sealed class MainWindow : Form
     private bool pageReady;
     private bool starting;
 
-    protected override CreateParams CreateParams
-    {
-        get
-        {
-            CreateParams parameters = base.CreateParams;
-            parameters.ClassName = "Chrome_LurchTracer_Window";
-            return parameters;
-        }
-    }
-
     public MainWindow()
     {
         Text = "Lurch Tracer";
